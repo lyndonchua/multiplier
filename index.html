@@ -12,7 +12,7 @@ header{padding:20px;text-align:center;background:#111827;border-bottom:3px solid
 h1{margin:0;font-size:2rem;}
 .subtitle{opacity:0.8;}
 .container{max-width:1200px;margin:auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-.card{background:#1e293b;border-radius:16px;padding:20px;box-shadow:0 0 15px rgba(0,0,0,0.3);}
+.card{background:#1e293b;border-radius:16px;padding:20px;box-shadow:0 0 15px rgba(0,0,0,0.3);overflow:hidden;}
 button{background:#38bdf8;border:none;padding:12px 18px;border-radius:10px;font-weight:bold;cursor:pointer;margin:5px;}
 button:hover{transform:scale(1.05);}
 .city{display:flex;justify-content:space-around;font-size:4rem;margin-top:15px;}
@@ -26,6 +26,7 @@ input[type=range]{width:100%;}
 textarea{width:100%;height:150px;border-radius:10px;padding:10px;}
 .score{font-size:1.5rem;font-weight:bold;color:#facc15;}
 .formula{background:#0f172a;padding:12px;border-radius:10px;margin-top:12px;line-height:1.6;}
+.explain{font-size:0.95rem;opacity:0.9;line-height:1.5;}
 @media(max-width:900px){.container{grid-template-columns:1fr;}}
 </style>
 </head>
@@ -59,10 +60,15 @@ textarea{width:100%;height:150px;border-radius:10px;padding:10px;}
 
 <h3>🎚 MPC</h3>
 
-<input type="range" min="0.1" max="0.9" step="0.1" value="0.8" id="mpc" oninput="updateDisplay()">
+<input type="range" min="0.1" max="0.9" step="0.1" value="0.6" id="mpc" oninput="syncMpsToMpc()">
 
-<div>MPC: <span id="mpcValue">0.8</span></div>
-<div>MPS: <span id="mpsValue">0.2</span></div>
+<div>MPC: <span id="mpcValue">0.60</span></div>
+<div>MPW: <span id="mpwTopValue">0.40</span></div>
+
+<p class="explain">
+MPW is linked to the withdrawal sliders: <strong>MPW = MPS + MPT + MPM</strong>.
+When MPS, MPT or MPM changes, MPW changes automatically.
+</p>
 </div>
 
 <div class="card">
@@ -70,20 +76,21 @@ textarea{width:100%;height:150px;border-radius:10px;padding:10px;}
 <h2>🚰 Withdrawals / Leakages (MPW)</h2>
 
 <label>MPS — Marginal Propensity to Save</label>
-<input type="range" min="0" max="0.5" step="0.05" value="0.2" id="mpsLeak" oninput="calculateMultiplier()">
+<input type="range" min="0" max="0.5" step="0.05" value="0.2" id="mpsLeak" oninput="syncMpcToMpw()">
 <div>MPS: <span id="mpsLeakValue">0.20</span></div>
 
 <label>MPT — Marginal Propensity to Tax</label>
-<input type="range" min="0" max="0.5" step="0.05" value="0.1" id="mptLeak" oninput="calculateMultiplier()">
+<input type="range" min="0" max="0.5" step="0.05" value="0.1" id="mptLeak" oninput="syncMpcToMpw()">
 <div>MPT: <span id="mptLeakValue">0.10</span></div>
 
 <label>MPM — Marginal Propensity to Import</label>
-<input type="range" min="0" max="0.5" step="0.05" value="0.1" id="mpmLeak" oninput="calculateMultiplier()">
+<input type="range" min="0" max="0.5" step="0.05" value="0.1" id="mpmLeak" oninput="syncMpcToMpw()">
 <div>MPM: <span id="mpmLeakValue">0.10</span></div>
 
 <div class="formula">
 <strong>MPW = MPS + MPT + MPM</strong><br>
 MPW = <span id="mpwValue">0.40</span><br>
+MPC = 1 − MPW = <span id="mpcFromMpwValue">0.60</span><br>
 Multiplier, k = 1 ÷ MPW
 </div>
 
@@ -118,117 +125,128 @@ Explain how an increase in government expenditure may lead to a more than propor
 <script>
 let xp=0;
 
+function getMpw(){
+  const mps=parseFloat(document.getElementById("mpsLeak").value);
+  const mpt=parseFloat(document.getElementById("mptLeak").value);
+  const mpm=parseFloat(document.getElementById("mpmLeak").value);
+  return mps+mpt+mpm;
+}
+
 function updateDisplay(){
-let mpc=parseFloat(document.getElementById("mpc").value);
+  const mps=parseFloat(document.getElementById("mpsLeak").value);
+  const mpt=parseFloat(document.getElementById("mptLeak").value);
+  const mpm=parseFloat(document.getElementById("mpmLeak").value);
+  const mpw=getMpw();
+  const mpc=Math.max(0,1-mpw);
+  const k=mpw>0 ? 1/mpw : 0;
 
-document.getElementById("mpcValue").textContent=mpc.toFixed(1);
-document.getElementById("mpsValue").textContent=(1-mpc).toFixed(1);
+  document.getElementById("mpsLeakValue").textContent=mps.toFixed(2);
+  document.getElementById("mptLeakValue").textContent=mpt.toFixed(2);
+  document.getElementById("mpmLeakValue").textContent=mpm.toFixed(2);
+
+  document.getElementById("mpwValue").textContent=mpw.toFixed(2);
+  document.getElementById("mpwTopValue").textContent=mpw.toFixed(2);
+  document.getElementById("mpcValue").textContent=mpc.toFixed(2);
+  document.getElementById("mpcFromMpwValue").textContent=mpc.toFixed(2);
+  document.getElementById("multiplier").textContent=k.toFixed(2);
+
+  document.getElementById("mpc").value=mpc.toFixed(2);
+
+  if(k>3){addBadge("🏅 Multiplier Master");}
 }
 
-function calculateMultiplier(){
-let mps=parseFloat(document.getElementById("mpsLeak").value);
-let mpt=parseFloat(document.getElementById("mptLeak").value);
-let mpm=parseFloat(document.getElementById("mpmLeak").value);
-
-let mpw=mps+mpt+mpm;
-let k=mpw>0 ? 1/mpw : 0;
-
-document.getElementById("mpsLeakValue").textContent=mps.toFixed(2);
-document.getElementById("mptLeakValue").textContent=mpt.toFixed(2);
-document.getElementById("mpmLeakValue").textContent=mpm.toFixed(2);
-document.getElementById("mpwValue").textContent=mpw.toFixed(2);
-document.getElementById("multiplier").textContent=k.toFixed(2);
-
-if(k>3){
-addBadge("🏅 Multiplier Master");
+function syncMpcToMpw(){
+  updateDisplay();
 }
+
+function syncMpsToMpc(){
+  const mpc=parseFloat(document.getElementById("mpc").value);
+  const newMps=Math.max(0,1-mpc-parseFloat(document.getElementById("mptLeak").value)-parseFloat(document.getElementById("mpmLeak").value));
+  document.getElementById("mpsLeak").value=Math.min(0.5,newMps).toFixed(2);
+  updateDisplay();
 }
 
 function startInjection(amount){
-let mpc=parseFloat(document.getElementById("mpc").value);
-let roundsDiv=document.getElementById("rounds");
+  const mpc=Math.max(0,1-getMpw());
+  let roundsDiv=document.getElementById("rounds");
+  roundsDiv.innerHTML="";
 
-roundsDiv.innerHTML="";
+  let current=amount;
+  let total=0;
+  let round=1;
 
-let current=amount;
-let total=0;
-let round=1;
+  while(current>1 && round<=15){
+    total+=current;
 
-while(current>1 && round<=15){
-total+=current;
+    roundsDiv.innerHTML+=`
+    <div>
+    Round ${round}: +$${current.toFixed(1)}m
+    </div>
+    `;
 
-roundsDiv.innerHTML+=`
-<div>
-Round ${round}: +$${current.toFixed(1)}m
-</div>
-`;
+    current=current*mpc;
+    round++;
+  }
 
-current=current*mpc;
-round++;
-}
+  document.getElementById("income").textContent="$"+total.toFixed(1)+"m";
 
-document.getElementById("income").textContent="$"+total.toFixed(1)+"m";
+  awardXP(20);
 
-awardXP(20);
-
-if(total>500){
-addBadge("🏅 Recession Rescuer");
-}
+  if(total>500){addBadge("🏅 Recession Rescuer");}
 }
 
 function awardXP(points){
-xp+=points;
-document.getElementById("xp").textContent=xp;
-document.getElementById("xpBar").style.width=Math.min(xp,100)+"%";
+  xp+=points;
+  document.getElementById("xp").textContent=xp;
+  document.getElementById("xpBar").style.width=Math.min(xp,100)+"%";
 }
 
 function addBadge(name){
-let badges=document.getElementById("badges");
+  let badges=document.getElementById("badges");
 
-if(!badges.innerHTML.includes(name)){
-let span=document.createElement("div");
-span.className="badge";
-span.textContent=name;
-badges.appendChild(span);
-}
+  if(!badges.innerHTML.includes(name)){
+    let span=document.createElement("div");
+    span.className="badge";
+    span.textContent=name;
+    badges.appendChild(span);
+  }
 }
 
 function markEssay(){
-let text=document.getElementById("essay").value.toLowerCase();
-let score=0;
+  let text=document.getElementById("essay").value.toLowerCase();
+  let score=0;
 
-const keywords=[
-"injection",
-"income",
-"consumption",
-"mpc",
-"mpw",
-"withdrawals",
-"successive",
-"multiplier"
-];
+  const keywords=[
+    "injection",
+    "income",
+    "consumption",
+    "mpc",
+    "mpw",
+    "withdrawals",
+    "successive",
+    "multiplier"
+  ];
 
-keywords.forEach(word=>{
-if(text.includes(word)) score++;
-});
+  keywords.forEach(word=>{
+    if(text.includes(word)) score++;
+  });
 
-let grade="Pass";
+  let grade="Pass";
 
-if(score>=7) grade="Distinction";
-else if(score>=5) grade="Merit";
+  if(score>=7) grade="Distinction";
+  else if(score>=5) grade="Merit";
 
-document.getElementById("feedback").innerHTML=
-`
-<h3>${grade}</h3>
-<p>Checklist Score: ${score}/8</p>
-<p>Good answers should mention injection, income generation, induced consumption, successive rounds, MPW, and the multiplier.</p>
-`;
+  document.getElementById("feedback").innerHTML=
+  `
+  <h3>${grade}</h3>
+  <p>Checklist Score: ${score}/8</p>
+  <p>Good answers should mention injection, income generation, induced consumption, successive rounds, MPW, and the multiplier.</p>
+  `;
 
-awardXP(15);
+  awardXP(15);
 }
 
 updateDisplay();
-calculateMultiplier();
 </script>
 
 </body>
