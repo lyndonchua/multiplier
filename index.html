@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiplier Madness! 🇸🇬</title>
+
+<style>
+*{
+box-sizing:border-box;
+font-family:Segoe UI,Arial,sans-serif;
+}
+
+body{
+margin:0;
+background:linear-gradient(135deg,#0f172a,#1e293b);
+color:white;
+}
+
+header{
+padding:20px;
+text-align:center;
+background:#111827;
+border-bottom:3px solid #38bdf8;
+}
+
+h1{
+margin:0;
+font-size:2rem;
+}
+
+.subtitle{
+opacity:0.8;
+}
+
+.container{
+max-width:1200px;
+margin:auto;
+padding:20px;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:20px;
+}
+
+.card{
+background:#1e293b;
+border-radius:16px;
+padding:20px;
+box-shadow:0 0 15px rgba(0,0,0,0.3);
+}
+
+button{
+background:#38bdf8;
+border:none;
+padding:12px 18px;
+border-radius:10px;
+font-weight:bold;
+cursor:pointer;
+margin:5px;
+}
+
+button:hover{
+transform:scale(1.05);
+}
+
+.city{
+display:flex;
+justify-content:space-around;
+font-size:4rem;
+margin-top:15px;
+}
+
+.money{
+font-size:1.5rem;
+color:#facc15;
+font-weight:bold;
+}
+
+.stat{
+font-size:1.2rem;
+margin:10px 0;
+}
+
+input[type=range]{
+width:100%;
+}
+
+.progress{
+background:#334155;
+height:30px;
+border-radius:20px;
+overflow:hidden;
+margin-top:10px;
+}
+
+.progress-bar{
+height:100%;
+background:linear-gradient(to right,#22c55e,#84cc16);
+width:0%;
+transition:1s;
+}
+
+.round-box{
+background:#0f172a;
+padding:10px;
+border-radius:10px;
+height:250px;
+overflow-y:auto;
+}
+
+.badges{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+margin-top:10px;
+}
+
+.badge{
+background:#16a34a;
+padding:8px 12px;
+border-radius:20px;
+font-size:0.9rem;
+}
+
+textarea{
+width:100%;
+height:150px;
+border-radius:10px;
+padding:10px;
+}
+
+.score{
+font-size:1.5rem;
+font-weight:bold;
+color:#facc15;
+}
+
+@media(max-width:900px){
+.container{
+grid-template-columns:1fr;
+}
+}
+</style>
+</head>
+<body>
+
+<header>
+<h1>💰 Multiplier Madness! 🇸🇬</h1>
+<div class="subtitle">
+Can $100 million become $500 million?
+</div>
+</header>
+
+<div class="container">
+
+<div class="card">
+
+<h2>🏙 Singapore Economy</h2>
+
+<div class="city">
+🏛️ 🏭 👨‍👩‍👧‍👦 🌏
+</div>
+
+<div class="stat">
+National Income:
+<span id="income">$0m</span>
+</div>
+
+<div class="stat">
+XP:
+<span id="xp">0</span>
+</div>
+
+<div class="progress">
+<div class="progress-bar" id="xpBar"></div>
+</div>
+
+<h3>💰 Choose Injection</h3>
+
+<button onclick="startInjection(100)">
+Government Spending $100m
+</button>
+
+<button onclick="startInjection(500)">
+MRT Project $500m
+</button>
+
+<button onclick="startInjection(1000)">
+Tourism Boom $1000m
+</button>
+
+<h3>🎚 MPC</h3>
+
+<input type="range"
+min="0.1"
+max="0.9"
+step="0.1"
+value="0.8"
+id="mpc"
+oninput="updateDisplay()">
+
+<div>
+MPC:
+<span id="mpcValue">0.8</span>
+</div>
+
+<div>
+MPS:
+<span id="mpsValue">0.2</span>
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>🚰 Leakages</h2>
+
+Savings:
+<input type="range" min="0" max="0.5" step="0.05"
+value="0.2" id="mpsLeak">
+
+Taxes:
+<input type="range" min="0" max="0.5" step="0.05"
+value="0.1" id="mptLeak">
+
+Imports:
+<input type="range" min="0" max="0.5" step="0.05"
+value="0.1" id="mpmLeak">
+
+<h3>📈 Multiplier</h3>
+
+<div class="score" id="multiplier">
+2.50
+</div>
+
+<button onclick="calculateMultiplier()">
+Calculate
+</button>
+
+<div class="badges" id="badges"></div>
+
+</div>
+
+<div class="card">
+
+<h2>🔄 Multiplier Rounds</h2>
+
+<div class="round-box" id="rounds"></div>
+
+</div>
+
+<div class="card">
+
+<h2>📝 A-Level Trainer</h2>
+
+<p>
+Explain how an increase in government expenditure may lead to a more than proportionate increase in national income.
+</p>
+
+<textarea id="essay"></textarea>
+
+<button onclick="markEssay()">
+AI Checklist
+</button>
+
+<div id="feedback"></div>
+
+</div>
+
+</div>
+
+<script>
+
+let xp=0;
+
+function updateDisplay(){
+
+let mpc=parseFloat(
+document.getElementById("mpc").value
+);
+
+document.getElementById("mpcValue").textContent=
+mpc.toFixed(1);
+
+document.getElementById("mpsValue").textContent=
+(1-mpc).toFixed(1);
+}
+
+function calculateMultiplier(){
+
+let mps=parseFloat(
+document.getElementById("mpsLeak").value
+);
+
+let mpt=parseFloat(
+document.getElementById("mptLeak").value
+);
+
+let mpm=parseFloat(
+document.getElementById("mpmLeak").value
+);
+
+let k=1/(mps+mpt+mpm);
+
+document.getElementById("multiplier").textContent=
+k.toFixed(2);
+
+awardXP(10);
+
+if(k>3){
+addBadge("🏅 Multiplier Master");
+}
+
+}
+
+function startInjection(amount){
+
+let mpc=parseFloat(
+document.getElementById("mpc").value
+);
+
+let roundsDiv=
+document.getElementById("rounds");
+
+roundsDiv.innerHTML="";
+
+let current=amount;
+let total=0;
+let round=1;
+
+while(current>1 && round<=15){
+
+total+=current;
+
+roundsDiv.innerHTML+=`
+<div>
+Round ${round}: +$${current.toFixed(1)}m
+</div>
+`;
+
+current=current*mpc;
+round++;
+
+}
+
+document.getElementById("income").textContent=
+"$"+total.toFixed(1)+"m";
+
+awardXP(20);
+
+if(total>500){
+addBadge("🏅 Recession Rescuer");
+}
+
+}
+
+function awardXP(points){
+
+xp+=points;
+
+document.getElementById("xp").textContent=
+xp;
+
+document.getElementById("xpBar").style.width=
+Math.min(xp,100)+"%";
+}
+
+function addBadge(name){
+
+let badges=
+document.getElementById("badges");
+
+if(!badges.innerHTML.includes(name)){
+
+let span=document.createElement("div");
+span.className="badge";
+span.textContent=name;
+badges.appendChild(span);
+
+}
+}
+
+function markEssay(){
+
+let text=
+document.getElementById("essay").value.toLowerCase();
+
+let score=0;
+
+const keywords=[
+"injection",
+"income",
+"consumption",
+"mpc",
+"leakages",
+"successive",
+"multiplier"
+];
+
+keywords.forEach(word=>{
+if(text.includes(word)) score++;
+});
+
+let grade="Pass";
+
+if(score>=6) grade="Distinction";
+else if(score>=4) grade="Merit";
+
+document.getElementById("feedback").innerHTML=
+`
+<h3>${grade}</h3>
+<p>Checklist Score: ${score}/7</p>
+`;
+
+awardXP(15);
+
+}
+
+updateDisplay();
+
+</script>
+
+</body>
+</html>
