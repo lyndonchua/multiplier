@@ -60,31 +60,39 @@ textarea{width:100%;height:150px;border-radius:10px;padding:10px;}
 
 <h3>🎚 MPC</h3>
 
-<input type="range" min="0.1" max="0.9" step="0.1" value="0.6" id="mpc" oninput="syncMpsToMpc()">
+<input type="range" min="0" max="1" step="0.05" value="0.60" id="mpc" oninput="syncMpsToMpc()">
 
 <div>MPC: <span id="mpcValue">0.60</span></div>
 <div>MPW: <span id="mpwTopValue">0.40</span></div>
 
 <p class="explain">
 MPW is linked to the withdrawal sliders: <strong>MPW = MPS + MPT + MPM</strong>.
-When MPS, MPT or MPM changes, MPW changes automatically.
+When MPS, MPT or MPM changes, MPC changes automatically because <strong>MPC = 1 − MPW</strong>.
 </p>
 </div>
 
 <div class="card">
+<h2>🔄 Multiplier Rounds</h2>
+<div class="round-box" id="rounds"></div>
+<div class="formula">
+<strong>Total National Income:</strong> <span id="roundsTotal">$0m</span>
+</div>
+</div>
 
-<h2>🚰 Withdrawals / Leakages (MPW)</h2>
+<div class="card">
+
+<h2>🚰 Withdrawals (MPW)</h2>
 
 <label>MPS — Marginal Propensity to Save</label>
-<input type="range" min="0" max="0.5" step="0.05" value="0.2" id="mpsLeak" oninput="syncMpcToMpw()">
+<input type="range" min="0" max="1" step="0.05" value="0.2" id="mpsLeak" oninput="withdrawalChanged('mpsLeak')">
 <div>MPS: <span id="mpsLeakValue">0.20</span></div>
 
 <label>MPT — Marginal Propensity to Tax</label>
-<input type="range" min="0" max="0.5" step="0.05" value="0.1" id="mptLeak" oninput="syncMpcToMpw()">
+<input type="range" min="0" max="1" step="0.05" value="0.1" id="mptLeak" oninput="withdrawalChanged('mptLeak')">
 <div>MPT: <span id="mptLeakValue">0.10</span></div>
 
 <label>MPM — Marginal Propensity to Import</label>
-<input type="range" min="0" max="0.5" step="0.05" value="0.1" id="mpmLeak" oninput="syncMpcToMpw()">
+<input type="range" min="0" max="1" step="0.05" value="0.1" id="mpmLeak" oninput="withdrawalChanged('mpmLeak')">
 <div>MPM: <span id="mpmLeakValue">0.10</span></div>
 
 <div class="formula">
@@ -99,11 +107,6 @@ Multiplier, k = 1 ÷ MPW
 
 <div class="badges" id="badges"></div>
 
-</div>
-
-<div class="card">
-<h2>🔄 Multiplier Rounds</h2>
-<div class="round-box" id="rounds"></div>
 </div>
 
 <div class="card">
@@ -125,18 +128,59 @@ Explain how an increase in government expenditure may lead to a more than propor
 <script>
 let xp=0;
 
+function getVal(id){
+  return parseFloat(document.getElementById(id).value) || 0;
+}
+
+function setVal(id,val){
+  document.getElementById(id).value = Number(val).toFixed(2);
+}
+
 function getMpw(){
-  const mps=parseFloat(document.getElementById("mpsLeak").value);
-  const mpt=parseFloat(document.getElementById("mptLeak").value);
-  const mpm=parseFloat(document.getElementById("mpmLeak").value);
-  return mps+mpt+mpm;
+  return getVal("mpsLeak") + getVal("mptLeak") + getVal("mpmLeak");
+}
+
+function enforceMPWCap(changedId){
+  const ids=["mpsLeak","mptLeak","mpmLeak"];
+  const others=ids
+    .filter(id=>id!==changedId)
+    .reduce((sum,id)=>sum+getVal(id),0);
+
+  const maxForChanged=Math.max(0,1-others);
+
+  if(getVal(changedId)>maxForChanged){
+    setVal(changedId,maxForChanged);
+  }
+}
+
+function updateSliderMaximums(){
+  const ids=["mpsLeak","mptLeak","mpmLeak"];
+
+  ids.forEach(id=>{
+    const others=ids
+      .filter(x=>x!==id)
+      .reduce((sum,x)=>sum+getVal(x),0);
+
+    const maxAllowed=Math.max(0,1-others);
+    document.getElementById(id).max=maxAllowed.toFixed(2);
+  });
 }
 
 function updateDisplay(){
-  const mps=parseFloat(document.getElementById("mpsLeak").value);
-  const mpt=parseFloat(document.getElementById("mptLeak").value);
-  const mpm=parseFloat(document.getElementById("mpmLeak").value);
-  const mpw=getMpw();
+  let mpw=getMpw();
+
+  if(mpw>1){
+    // Safety fallback: reduce MPS first so total MPW can never display above 1.
+    const excess=mpw-1;
+    setVal("mpsLeak",Math.max(0,getVal("mpsLeak")-excess));
+    mpw=getMpw();
+  }
+
+  updateSliderMaximums();
+
+  const mps=getVal("mpsLeak");
+  const mpt=getVal("mptLeak");
+  const mpm=getVal("mpmLeak");
   const mpc=Math.max(0,1-mpw);
   const k=mpw>0 ? 1/mpw : 0;
 
@@ -155,20 +199,30 @@ function updateDisplay(){
   if(k>3){addBadge("🏅 Multiplier Master");}
 }
 
-function syncMpcToMpw(){
+function withdrawalChanged(changedId){
+  enforceMPWCap(changedId);
   updateDisplay();
 }
 
 function syncMpsToMpc(){
-  const mpc=parseFloat(document.getElementById("mpc").value);
-  const newMps=Math.max(0,1-mpc-parseFloat(document.getElementById("mptLeak").value)-parseFloat(document.getElementById("mpmLeak").value));
-  document.getElementById("mpsLeak").value=Math.min(0.5,newMps).toFixed(2);
+  const targetMpc=getVal("mpc");
+  const targetMpw=Math.max(0,1-targetMpc);
+  const mpt=getVal("mptLeak");
+  const mpm=getVal("mpmLeak");
+
+  let newMps=targetMpw-mpt-mpm;
+
+  if(newMps<0){newMps=0;}
+  if(newMps>1){newMps=1;}
+
+  setVal("mpsLeak",newMps);
+  enforceMPWCap("mpsLeak");
   updateDisplay();
 }
 
 function startInjection(amount){
   const mpc=Math.max(0,1-getMpw());
-  let roundsDiv=document.getElementById("rounds");
+  const roundsDiv=document.getElementById("rounds");
   roundsDiv.innerHTML="";
 
   let current=amount;
@@ -189,6 +243,7 @@ function startInjection(amount){
   }
 
   document.getElementById("income").textContent="$"+total.toFixed(1)+"m";
+  document.getElementById("roundsTotal").textContent="$"+total.toFixed(1)+"m";
 
   awardXP(20);
 
@@ -202,10 +257,10 @@ function awardXP(points){
 }
 
 function addBadge(name){
-  let badges=document.getElementById("badges");
+  const badges=document.getElementById("badges");
 
   if(!badges.innerHTML.includes(name)){
-    let span=document.createElement("div");
+    const span=document.createElement("div");
     span.className="badge";
     span.textContent=name;
     badges.appendChild(span);
@@ -213,7 +268,7 @@ function addBadge(name){
 }
 
 function markEssay(){
-  let text=document.getElementById("essay").value.toLowerCase();
+  const text=document.getElementById("essay").value.toLowerCase();
   let score=0;
 
   const keywords=[
